@@ -6,9 +6,18 @@ import unittest
 from couchdb_remote import Couchdb
 
 class TestSequenceFunctions(unittest.TestCase):
+    """
+    Tests the behaviour of the couchdb backend.
+
+    To run the test, you need a running couchdb-talking instance
+    (couchdb, pouchdb, anything else) running on localhost:5984. You
+    also need to create a db called "nvpy-test", which you must delete
+    after the test.
+
+    """
 
     def setUp(self):
-        self.couchBackend = Couchdb("http://localhost:5984")
+        self.couchBackend = Couchdb(db="nvpy-test")
 
     def test_AddStringNote(self):
         content = 'Some utf8 ćontent'
