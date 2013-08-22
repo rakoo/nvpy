@@ -22,12 +22,14 @@ except ImportError:
         # For Google AppEngine
         from django.utils import simplejson as json
 
+from remote import AbstractRemote
+
 AUTH_URL = 'https://simple-note.appspot.com/api/login'
 DATA_URL = 'https://simple-note.appspot.com/api2/data'
 INDX_URL = 'https://simple-note.appspot.com/api2/index?'
 NOTE_FETCH_LENGTH = 20
 
-class Simplenote(object):
+class Simplenote(AbstractRemote):
     """ Class for interacting with the simplenote web service """
 
     def __init__(self, username, password):
