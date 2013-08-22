@@ -23,6 +23,20 @@ class Couchdb(AbstractRemote):
         # UUIDs to be used for new docs
         self.uuids = []
 
+    def get_note_list(self, qty=float("inf")):
+        # TODO: use a "type":"note" in each note to list only real notes
+        # TODO: separate the content (maybe in an attachment?) to
+        # retrieve only the metadata, not the content. For the moment we
+        # filter out the "content"
+        vr = self.db.view("_all_docs", include_docs=True)
+
+        ret = []
+        for row in vr.rows:
+            nocontent = self._couchdb_to_nvpy(row["doc"])
+            del nocontent["content"]
+            ret.append(nocontent)
+
+        return ret
 
     def get_note(self, noteid):
         doc = self.db.get(noteid)
@@ -84,6 +98,7 @@ class Couchdb(AbstractRemote):
         del doc["_id"]
 
         del doc["_rev"]
+
         # Encode to utf-8
         doc["content"] = doc["content"].encode("utf-8")
         if "tags" in doc:

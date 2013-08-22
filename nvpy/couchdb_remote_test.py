@@ -64,6 +64,31 @@ class TestSequenceFunctions(unittest.TestCase):
         self.assertTrue("tags" in newdoc)
         self.assertEquals(newdoc["tags"], note["tags"])
 
+    def test_ListNote(self):
+        note1 = {
+            "key": "key1",
+            "content": "content1"
+        }
+        note2 = {
+            "key": "key2",
+            "content": "content2"
+        }
+        self.couchBackend.add_note(note1)
+        self.couchBackend.add_note(note2)
+        notes = {"key1": note1, "key2": note2}
+
+        notes = self.couchBackend.get_note_list()
+        # 5 because of the notes of other tests
+        self.assertEquals(5, len(notes))
+
+        # Only test note1 and note2
+        for n in notes:
+            if n["key"] not in ("key1", "key2"): # skip other tests' notes
+                continue
+            key = n["key"]
+            if "tags" in n:
+                self.assertEquals(n["tags"], notes[key]["tags"])
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
 unittest.TextTestRunner(verbosity=2).run(suite)

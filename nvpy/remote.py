@@ -41,3 +41,20 @@ class AbstractRemote(object):
 
         """
         raise NotImplementedError("Not implemented in AbstractRemote")
+
+    def get_note_list(self, qty=float("inf")):
+        """ function to get the note list
+
+        The function can be passed an optional argument to limit the
+        size of the list returned. If omitted a list of all notes is
+        returned.
+
+        Arguments:
+            - quantity (integer number): of notes to list
+
+        Returns:
+            An array of note objects with all properties set except
+            `content`.
+
+        """
+        raise NotImplementedError("Not implemented in AbstractRemote")
