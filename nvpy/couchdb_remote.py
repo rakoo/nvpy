@@ -42,10 +42,11 @@ class Couchdb(AbstractRemote):
 
     def _update_note(self, note):
         doc = self._nvpy_to_couchdb(note)
-        id, rev = self.db.save(doc)
+        ok, id, rev_or_exc = self.db.update([doc])[0]
+        # TODO: treat !ok and rev_or_exc
         note = self._couchdb_to_nvpy(doc)
 
-        if rev is not None and id == note["key"]:
+        if rev_or_exc is not None and id == note["key"]:
             return note, 0
         else:
             return note, 1
@@ -74,7 +75,7 @@ class Couchdb(AbstractRemote):
     def _couchdb_to_nvpy(self, doc):
         """
         Transform a couchdb doc (with "_id") to a nvpy doc (with
-        "_key").
+        "_key") and remove the "_rev" key.
 
         Also transform everything into utf-8
         """
@@ -82,6 +83,7 @@ class Couchdb(AbstractRemote):
         doc["key"] = doc["_id"]
         del doc["_id"]
 
+        del doc["_rev"]
         # Encode to utf-8
         doc["content"] = doc["content"].encode("utf-8")
         if "tags" in doc:
