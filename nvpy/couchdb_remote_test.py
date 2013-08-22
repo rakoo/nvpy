@@ -46,5 +46,24 @@ class TestSequenceFunctions(unittest.TestCase):
         self.assertTrue("tags" in newdoc)
         self.assertEquals(newdoc["tags"], note["tags"])
 
+    def test_GetNote(self):
+        note = {
+            "content": "Some oẗher utf-8 cöntent",
+            "tags":["tag1","tag2"]
+        }
+        newnote, ok = self.couchBackend.add_note(note)
+        self.assertEqual(ok, 0)
+
+        newdoc, ok = self.couchBackend.get_note(newnote["key"])
+        self.assertEqual(ok, 0)
+
+        # Same checks as previous function
+        self.assertTrue("content" in newdoc)
+        self.assertEquals(newdoc["content"], note["content"])
+
+        self.assertTrue("tags" in newdoc)
+        self.assertEquals(newdoc["tags"], note["tags"])
+
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
 unittest.TextTestRunner(verbosity=2).run(suite)

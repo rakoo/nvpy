@@ -25,7 +25,12 @@ class Couchdb(AbstractRemote):
 
 
     def get_note(self, noteid):
-        return {}, 0
+        doc = self.db.get(noteid)
+        if doc is not None:
+            return self._couchdb_to_nvpy(doc), 0
+        else:
+            return None, -1
+
 
     def add_note(self, note):
         if type(note) == str:
