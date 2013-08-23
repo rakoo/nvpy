@@ -91,6 +91,9 @@ class TestSequenceFunctions(unittest.TestCase):
             if "tags" in n:
                 self.assertEquals(n["tags"], notes[key]["tags"])
 
+    def test_LimitedListNote(self):
+        notes = self.couchBackend.get_note_list(1)
+        self.assertEquals(1, len(notes))
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
 unittest.TextTestRunner(verbosity=2).run(suite)
