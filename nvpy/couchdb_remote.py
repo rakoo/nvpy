@@ -58,12 +58,13 @@ class Couchdb(AbstractRemote):
 
 
     def add_note(self, note):
-        if type(note) == str:
+        if isinstance(note, basestring):
             return self._update_note({"content": note})
-        elif (type(note) == dict) and note.has_key("content"):
+        elif (isinstance(note, dict)) and "content" in note:
             return self._update_note(note)
         else:
             return "No string or valid note.", -1
+
 
     def _update_note(self, note):
         doc = self._nvpy_to_couchdb(note)
