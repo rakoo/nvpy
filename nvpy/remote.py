@@ -58,3 +58,19 @@ class AbstractRemote(object):
 
         """
         raise NotImplementedError("Not implemented in AbstractRemote")
+
+    def delete_note(self, note_id):
+        """ method to permanently delete a note
+
+        Arguments:
+            - note_id (string): key of the note to trash
+
+        Returns:
+            A tuple `(note, status)`
+
+            - note (dict): an empty dict or an error message
+            - status (int): 0 on sucesss and -1 otherwise
+
+        """
+        raise NotImplementedError("Not implemented in AbstractRemote")
+

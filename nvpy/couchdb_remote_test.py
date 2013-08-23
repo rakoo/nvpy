@@ -95,5 +95,16 @@ class TestSequenceFunctions(unittest.TestCase):
         notes = self.couchBackend.get_note_list(1)
         self.assertEquals(1, len(notes))
 
+    def test_DeleteNote(self):
+        note = {
+            "key": "note",
+            "content": "some content",
+        }
+        self.couchBackend.add_note(note)
+        self.couchBackend.delete_note("note")
+        actual_note, ok = self.couchBackend.get_note("note")
+        self.assertEquals(None, actual_note)
+        self.assertEquals(-1, ok)
+
 suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
 unittest.TextTestRunner(verbosity=2).run(suite)

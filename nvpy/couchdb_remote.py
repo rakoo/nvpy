@@ -65,6 +65,16 @@ class Couchdb(AbstractRemote):
         else:
             return "No string or valid note.", -1
 
+    def delete_note(self, noteid):
+        doc = self.db.get(noteid)
+        try:
+            self.db.delete(doc)
+        except couchdb.ResourceConflict:
+            # restart until it works
+            # TODO: do not restart indefinitely
+            self.delete_note(noteid)
+
+        return {}, 0
 
     def _update_note(self, note):
         doc = self._nvpy_to_couchdb(note)
