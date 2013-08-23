@@ -20,7 +20,7 @@ class TestSequenceFunctions(unittest.TestCase):
         self.couchBackend = Couchdb(db="nvpy-test")
 
     def test_AddStringNote(self):
-        content = 'Some utf8 ćontent'
+        content = u'Some utf8 ćontent'
         newdoc, ok = self.couchBackend.add_note(content)
         self.assertEqual(ok, 0)
         self.assertTrue("key" in newdoc)
@@ -32,7 +32,7 @@ class TestSequenceFunctions(unittest.TestCase):
 
     def test_AddContentNote(self):
         note = {
-            "content": "Some oẗher utf-8 cöntent",
+            "content": u"Some oẗher utf-8 cöntent",
             "tags":["tag1","tag2"]
         }
 
@@ -47,6 +47,8 @@ class TestSequenceFunctions(unittest.TestCase):
         self.assertEquals(newdoc["tags"], note["tags"])
 
     def test_GetNote(self):
+        # This note has utf-8 content but it's not a unicode object,
+        # it's a str, so we also test it doesn't break
         note = {
             "content": "Some oẗher utf-8 cöntent",
             "tags":["tag1","tag2"]

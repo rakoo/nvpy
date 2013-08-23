@@ -74,7 +74,8 @@ class Couchdb(AbstractRemote):
         """
 
         # Encode to utf-8
-        note["content"] = unicode(note["content"], "utf-8")
+        if isinstance(note["content"], str):
+            note["content"] = unicode(note["content"], "utf-8")
         if "tags" in note:
             note["tags"] = [unicode(t, "utf-8") if isinstance(t,str) else t for t in note["tags"]]
 
@@ -100,7 +101,7 @@ class Couchdb(AbstractRemote):
         del doc["_rev"]
 
         # Encode to utf-8
-        doc["content"] = doc["content"].encode("utf-8")
+        doc["content"] = unicode(doc["content"])
         if "tags" in doc:
             doc["tags"] = [t.encode('utf-8') if isinstance(t,str) else t for t in doc["tags"]]
 
