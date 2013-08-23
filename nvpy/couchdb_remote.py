@@ -70,12 +70,10 @@ class Couchdb(AbstractRemote):
         doc = self._nvpy_to_couchdb(note)
         ok, id, rev_or_exc = self.db.update([doc])[0]
         # TODO: treat !ok and rev_or_exc
-        note = self._couchdb_to_nvpy(doc)
-
-        if rev_or_exc is not None and id == note["key"]:
-            return note, 0
+        if ok == -1:
+            return None, -1
         else:
-            return note, 1
+            return self.get_note(id)
 
     def _nvpy_to_couchdb(self, note):
         """
