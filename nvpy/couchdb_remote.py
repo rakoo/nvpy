@@ -28,15 +28,26 @@ class Couchdb(AbstractRemote):
         # TODO: separate the content (maybe in an attachment?) to
         # retrieve only the metadata, not the content. For the moment we
         # filter out the "content"
-        vr = self.db.view("_all_docs", include_docs=True)
+        opts = {
+            "include_docs": True,
+        }
+        if qty != float("inf"):
+            opts["limit"] = qty
 
-        ret = []
-        for row in vr.rows:
-            nocontent = self._couchdb_to_nvpy(row["doc"])
-            del nocontent["content"]
-            ret.append(nocontent)
+        vr = self.db.view("_all_docs", self._row_without_content, **opts)
 
-        return ret
+        return vr.rows
+
+    def _row_without_content(self, row):
+        """
+        Transform the row of a view results to a doc without content.
+        This function is called by the view function in the
+        couchdb-python code
+        """
+
+        nocontent = self._couchdb_to_nvpy(row["doc"])
+        del nocontent["content"]
+        return nocontent
 
     def get_note(self, noteid):
         doc = self.db.get(noteid)
