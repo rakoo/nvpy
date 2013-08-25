@@ -10,15 +10,20 @@ from remote import AbstractRemote
     Python library to synchronize nvpy with a couchdb instance
 """
 
+class CouchdbInitError(RuntimeError):
+    pass
+
 class Couchdb(AbstractRemote):
 
-    def __init__(self, url="http://localhost:5984", db="nvpy"):
+    def __init__(self, url="http://localhost:5984/", db="nvpy"):
         # The couchdb instance
         self.couch = couchdb.Server(url)
 
         # The db used
         # Note that it needs to be already existing, and I don't want to
         # manage credentials here so it has to be done outside.
+        if db not in self.couch:
+            raise CouchdbInitError(db + " db is not present on the couchdb instance. Please create it.")
         self.db = self.couch[db]
 
         # UUIDs to be used for new docs
