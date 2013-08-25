@@ -42,7 +42,7 @@ class Couchdb(AbstractRemote):
 
         vr = self.db.view("_all_docs", self._row_without_content, **opts)
 
-        return vr.rows
+        return vr.rows, 0
 
     def _row_without_content(self, row):
         """

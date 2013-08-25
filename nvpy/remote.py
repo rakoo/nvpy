@@ -70,8 +70,9 @@ class AbstractRemote(object):
             - quantity (integer number): of notes to list
 
         Returns:
-            An array of note objects with all properties set except
+            - An array of note objects with all properties set except
             `content`.
+            - status (int): 0 on success and -1 otherwise
 
         """
         raise NotImplementedError("Not implemented in AbstractRemote")

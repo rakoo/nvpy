@@ -80,7 +80,8 @@ class TestSequenceFunctions(unittest.TestCase):
         self.couchBackend.add_note(note2)
         notes = {"key1": note1, "key2": note2}
 
-        notes = self.couchBackend.get_note_list()
+        notes, status = self.couchBackend.get_note_list()
+        self.assertEquals(0, status)
         # 6 because of the notes of other tests
         self.assertEquals(6, len(notes))
 
@@ -93,7 +94,8 @@ class TestSequenceFunctions(unittest.TestCase):
                 self.assertEquals(n["tags"], notes[key]["tags"])
 
     def test_LimitedListNote(self):
-        notes = self.couchBackend.get_note_list(1)
+        notes, status = self.couchBackend.get_note_list(1)
+        self.assertEquals(0, status)
         self.assertEquals(1, len(notes))
 
     def test_DeleteNote(self):
