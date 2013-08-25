@@ -97,6 +97,7 @@ class Config:
                     'sn_username' : '',
                     'sn_password' : '',
                     'simplenote_sync' : '1',
+                    'couchdb_sync': '1',
                     # Filename or filepath to a css file used style the rendered
                     # output; e.g. nvpy.css or /path/to/my.css
                     'rest_css_path': None,
@@ -126,6 +127,8 @@ class Config:
         self.sn_username = cp.get(cfg_sec, 'sn_username', raw=True)
         self.sn_password = cp.get(cfg_sec, 'sn_password', raw=True)
         self.simplenote_sync = cp.getint(cfg_sec, 'simplenote_sync')
+        self.couchdb_sync = cp.getint(cfg_sec, 'couchdb_sync')
+        self.remote_sync = self.simplenote_sync or self.couchdb_sync
         # make logic to find in $HOME if not set
         self.db_path = cp.get(cfg_sec, 'db_path')
         #  0 = alpha sort, 1 = last modified first
@@ -225,6 +228,7 @@ class Controller:
 
         if self.config.sn_username == '':
             self.config.simplenote_sync = 0
+            self.config.remote_sync = self.config.simplenote_sync or self.config.couchdb_sync
 
         css = self.config.rest_css_path
         if css:
@@ -242,7 +246,7 @@ class Controller:
         self.view = view.View(self.config, self.notes_list_model)
 
         # read our database of notes into memory
-        # and sync with simplenote.
+        # and sync with remote backends.
         try:
            self.notes_db = NotesDB(self.config)
 
@@ -255,7 +259,7 @@ class Controller:
         self.notes_db.add_observer('synced:note', self.observer_notes_db_synced_note)
         self.notes_db.add_observer('change:note-status', self.observer_notes_db_change_note_status)
 
-        if self.config.simplenote_sync:
+        if self.config.remote_sync:
             self.notes_db.add_observer('progress:sync_full', self.observer_notes_db_sync_full)
             self.sync_full()
 
@@ -275,7 +279,7 @@ class Controller:
         self.view.add_observer('command:rest',
                 self.observer_view_rest)
 
-        if self.config.simplenote_sync:
+        if self.config.remote_sync:
             self.view.add_observer('command:sync_full', lambda v, et, e: self.sync_full())
             self.view.add_observer('command:sync_current_note', self.observer_view_sync_current_note)
 
@@ -467,15 +471,15 @@ class Controller:
 
         saven = self.notes_db.get_save_queue_len()
 
-        if self.config.simplenote_sync:
+        if self.config.remote_sync:
             syncn = self.notes_db.get_sync_queue_len()
-            wfsn = self.notes_db.waiting_for_simplenote
+            wfsn = self.notes_db.waiting_for_couchdb
         else:
             syncn = wfsn = 0
 
         savet = 'Saving %d notes.' % (saven,) if saven > 0 else '';
         synct = 'Waiting to sync %d notes.' % (syncn,) if syncn > 0 else '';
-        wfsnt = 'Syncing with simplenote server.' if wfsn else '';
+        wfsnt = 'Syncing with remote server.' if wfsn else '';
 
         return ' '.join([i for i in [savet, synct, wfsnt] if i])
 
@@ -485,10 +489,11 @@ class Controller:
         nsaved = self.notes_db.save_threaded()
         msg = self.helper_save_sync_msg()
 
-        if self.config.simplenote_sync:
+        if self.config.remote_sync:
             nsynced, sync_errors = self.notes_db.sync_to_server_threaded()
             if sync_errors:
-                msg = ' '.join([i for i in [msg, 'Could not connect to simplenote server.'] if i])
+                msg = ' '.join([i for i in [msg, 'Could not connect to\
+                                            remote server.'] if i])
 
         self.view.set_status_text(msg)
 
@@ -608,10 +613,10 @@ class Controller:
 
         # first make sure all our queues are up to date
         self.notes_db.save_threaded()
-        if self.config.simplenote_sync:
+        if self.config.remote_sync:
             self.notes_db.sync_to_server_threaded(wait_for_idle=False)
             syncn = self.notes_db.get_sync_queue_len()
-            wfsn = self.notes_db.waiting_for_simplenote
+            wfsn = self.notes_db.waiting_for_couchdb
         else:
             syncn = wfsn = 0
 

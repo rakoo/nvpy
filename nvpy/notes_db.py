@@ -14,6 +14,8 @@ import simplenote
 simplenote.NOTE_FETCH_LENGTH=100
 from simplenote import Simplenote
 
+import couchdb_remote
+
 from threading import Thread
 import time
 import utils
@@ -32,7 +34,8 @@ class WriteError(RuntimeError):
     pass
 
 class NotesDB(utils.SubjectMixin):
-    """NotesDB will take care of the local notes database and syncing with SN.
+    """NotesDB will take care of the local notes database and syncing
+    with remote backends (SN or couchdb)
     """
     def __init__(self, config):
         utils.SubjectMixin.__init__(self)
@@ -85,7 +88,7 @@ class NotesDB(utils.SubjectMixin):
                             n['modifydate'] = os.path.getmtime(tfn)
                     else:
                         logging.debug('Deleting note : %s' % (fn,))
-                        if not self.config.simplenote_sync:
+                        if not self.config.remote_sync:
                             os.unlink(fn)
                             continue
                         else:
@@ -142,21 +145,34 @@ class NotesDB(utils.SubjectMixin):
         thread_save.setDaemon(True)
         thread_save.start()
 
-        # initialise the simplenote instance we're going to use
-        # this does not yet need network access
-        if self.config.simplenote_sync:
-            self.simplenote = Simplenote(config.sn_username, config.sn_password)
-        
+        # initialise the remote backends instances we're going to use
+        # this needs proper access to couchdb instance, but it's
+        # supposed to be run on localhost so there should be no network
+        # issue. However, you will need the db to be created.
+        if self.config.remote_sync:
+
+            # Not yet
+            # if self.config.simplenote_sync:
+            #   self.simplenote = Simplenote(config.sn_username, config.sn_password)
+
+                # reading a variable or setting this variable is atomic
+                # so sync thread will write to it, main thread will only
+                # check it sometimes.
+            #   self.waiting_for_simplenote = False
+
+            if self.config.couchdb_sync:
+                self.couchdb_remote = couchdb_remote.Couchdb()
+
+                # reading a variable or setting this variable is atomic
+                # so sync thread will write to it, main thread will only
+                # check it sometimes.
+                self.waiting_for_couchdb = False
+
             # we'll use this to store which notes are currently being synced by
             # the background thread, so we don't add them anew if they're still
             # in progress. This variable is only used by the background thread.
             self.threaded_syncing_keys = {}
         
-            # reading a variable or setting this variable is atomic
-            # so sync thread will write to it, main thread will only
-            # check it sometimes.
-            self.waiting_for_simplenote = False
-
             self.q_sync = Queue()
             self.q_sync_res = Queue()
         
@@ -481,7 +497,7 @@ class NotesDB(utils.SubjectMixin):
                     os.unlink(dfn)
         
         fn = self.helper_key_to_fname(k)
-        if not self.config.simplenote_sync and note.get('deleted'):
+        if not self.config.remote_sync and note.get('deleted'):
             if os.path.isfile(fn):
                 os.unlink(fn)
         else:
@@ -502,7 +518,7 @@ class NotesDB(utils.SubjectMixin):
         if not note.get('key') or float(note.get('modifydate')) > float(note.get('syncdate')):
             # if has no key, or it has been modified sync last sync, 
             # update to server
-            uret = self.simplenote.update_note(note)
+            uret = self.couchdb_remote.update_note(note)
 
             if uret[1] == 0:
                 # success!
@@ -531,7 +547,7 @@ class NotesDB(utils.SubjectMixin):
             
         else:
             # our note is synced up, but we check if server has something new for us
-            gret = self.simplenote.get_note(note['key'])
+            gret = self.couchdb_remote.get_note(note['key'])
             
             if gret[1] == 0:
                 n = gret[0]
@@ -656,7 +672,7 @@ class NotesDB(utils.SubjectMixin):
                             
                         else:
                             # the user has changed stuff since the version that got synced
-                            # just record syncnum and version that we got from simplenote
+                            # just record syncnum and version that we got from remote backend
                             # if we don't do this, merging problems start happening.
                             # VERY importantly: also store the key. It
                             # could be that we've just created the
@@ -695,7 +711,7 @@ class NotesDB(utils.SubjectMixin):
         for ni,lk in enumerate(self.notes.keys()):
             n = self.notes[lk]
             if not n.get('key') or float(n.get('modifydate')) > float(n.get('syncdate')):
-                uret = self.simplenote.update_note(n)
+                uret = self.couchdb_remote.update_note(n)
                 if uret[1] == 0:
                     # replace n with uret[0]
                     # if this was a new note, our local key is not valid anymore
@@ -724,7 +740,7 @@ class NotesDB(utils.SubjectMixin):
         # 2. if remote syncnum > local syncnum, update our note; if key is new, add note to local.
         # this gets the FULL note list, even if multiple gets are required
         self.notify_observers('progress:sync_full', utils.KeyValueObject(msg='Retrieving full note list from server, could take a while.'))       
-        nl = self.simplenote.get_note_list()
+        nl = self.couchdb_remote.get_note_list()
         if nl[1] == 0:
             nl = nl[0]
             self.notify_observers('progress:sync_full', utils.KeyValueObject(msg='Retrieved full note list from server.'))
@@ -745,7 +761,7 @@ class NotesDB(utils.SubjectMixin):
                 # check if server n has a newer syncnum than mine
                 if int(n.get('syncnum')) > int(self.notes[k].get('syncnum', -1)):
                     # and the server is newer
-                    ret = self.simplenote.get_note(k)
+                    ret = self.couchdb_remote.get_note(k)
                     if ret[1] == 0:
                         self.notes[k].update(ret[0])
                         local_updates[k] = True
@@ -759,7 +775,7 @@ class NotesDB(utils.SubjectMixin):
 
             else:
                 # new note
-                ret = self.simplenote.get_note(k)
+                ret = self.couchdb_remote.get_note(k)
                 if ret[1] == 0:
                     self.notes[k] = ret[0]
                     local_updates[k] = True
@@ -862,15 +878,15 @@ class NotesDB(utils.SubjectMixin):
             o = self.q_sync.get()
             
             if o.action == ACTION_SYNC_PARTIAL_TO_SERVER:
-                self.waiting_for_simplenote = True
+                self.waiting_for_couchdb = True
                 if 'key' in o.note:
                     logging.debug('Updating note %s (local key %s) to server.' % (o.note['key'], o.key))
 
                 else:
                     logging.debug('Sending new note (local key %s) to server.' % (o.key,))
                     
-                uret = self.simplenote.update_note(o.note)
-                self.waiting_for_simplenote = False
+                uret = self.couchdb_remote.update_note(o.note)
+                self.waiting_for_couchdb = False
                 
                 if uret[1] == 0:
                     # success!
