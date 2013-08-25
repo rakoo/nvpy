@@ -88,7 +88,6 @@ class Couchdb(AbstractRemote):
 
         doc = self._nvpy_to_couchdb(note)
         id = doc["_id"]
-        doc["modifydate"] = time.time()
 
         try:
             id, rev = self.db.save(doc)
@@ -137,10 +136,16 @@ class Couchdb(AbstractRemote):
         if "tags" in note:
             doc["tags"] = [unicode(t, "utf-8") if isinstance(t,str) else t for t in note["tags"]]
 
+        now = time.time()
+
+        # TODO do this on couchdb side with an update handler
+        doc["syncdate"] = now
+
         if "key" in note:
             doc["_id"] = note["key"]
+            doc["modifydate"] = now
         else:
-            doc["createdate"] = time.time()
+            doc["createdate"] = now
             doc["_id"] = self._next_uuid()
 
         # Add _rev if known
@@ -159,8 +164,13 @@ class Couchdb(AbstractRemote):
             MUST be called after retrieving from couchdb
         """
 
+        createdate = doc.get("createdate") or time.time()
+        modifydate = doc.get("modifydate") or createdate
         note = {
             "key": doc["_id"],
+            "createdate": createdate,
+            "modifydate": modifydate,
+            "syncdate": doc["syncdate"],
         }
         if isinstance(doc["content"], str):
             note["content"] = unicode(doc["content"], "utf-8")

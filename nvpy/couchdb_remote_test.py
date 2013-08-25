@@ -118,10 +118,21 @@ class TestSequenceFunctions(unittest.TestCase):
         self.assertEquals(ok, 0)
         self.assertEquals(new_note["syncnum"], 1)
 
+        createdate = new_note["createdate"]
+        syncdate = new_note["syncdate"]
+        self.assertIsNotNone(createdate)
+        self.assertIsNotNone(syncdate)
+
         new_note["content"] = "after"
         new_new_note, ok = self.couchBackend.update_note(new_note)
         self.assertEquals(ok, 0)
         self.assertEquals(new_new_note["syncnum"], 2)
+
+        modifydate = new_new_note["modifydate"]
+        self.assertTrue(modifydate > createdate)
+        self.assertTrue(modifydate > syncdate)
+        newsyncdate = new_new_note["syncdate"]
+        self.assertTrue(newsyncdate > syncdate)
 
     def test_DontReturnContentIfUnchanged(self):
         note = {
