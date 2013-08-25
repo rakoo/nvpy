@@ -42,6 +42,23 @@ class AbstractRemote(object):
         """
         raise NotImplementedError("Not implemented in AbstractRemote")
 
+    def update_note(self, note):
+        """ function to update a specific note object, if the note object does not
+        have a "key" field, a new note is created
+
+        Arguments
+            - note (dict): note object to update
+
+        Returns:
+            A tuple `(note, status)`
+
+            - note (dict): note object with an empty "content" if it is
+            unchanged
+            - status (int): 0 on sucesss and -1 otherwise
+
+        """
+        raise NotImplementedError("Not implemented in AbstractRemote")
+
     def get_note_list(self, qty=float("inf")):
         """ function to get the note list
 

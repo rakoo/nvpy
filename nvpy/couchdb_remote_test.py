@@ -61,7 +61,8 @@ class TestSequenceFunctions(unittest.TestCase):
 
         # Same checks as previous function
         self.assertTrue("content" in newdoc)
-        self.assertEquals(newdoc["content"], note["content"])
+        self.assertEquals(newdoc["content"], unicode(note["content"],
+                                                     "utf-8"))
 
         self.assertTrue("tags" in newdoc)
         self.assertEquals(newdoc["tags"], note["tags"])
@@ -80,8 +81,8 @@ class TestSequenceFunctions(unittest.TestCase):
         notes = {"key1": note1, "key2": note2}
 
         notes = self.couchBackend.get_note_list()
-        # 5 because of the notes of other tests
-        self.assertEquals(5, len(notes))
+        # 6 because of the notes of other tests
+        self.assertEquals(6, len(notes))
 
         # Only test note1 and note2
         for n in notes:
@@ -105,6 +106,33 @@ class TestSequenceFunctions(unittest.TestCase):
         actual_note, ok = self.couchBackend.get_note("note")
         self.assertEquals(None, actual_note)
         self.assertEquals(-1, ok)
+
+    def test_UpdateNote(self):
+        note = {
+            "key": "keyx",
+            "content": "before"
+        }
+        new_note, ok = self.couchBackend.add_note(note)
+        self.assertEquals(ok, 0)
+        self.assertEquals(new_note["syncnum"], 1)
+
+        new_note["content"] = "after"
+        new_new_note, ok = self.couchBackend.update_note(new_note)
+        self.assertEquals(ok, 0)
+        self.assertEquals(new_new_note["syncnum"], 2)
+
+    def test_DontReturnContentIfUnchanged(self):
+        note = {
+            "key": "keyy",
+            "content": "some content"
+        }
+        new_note, ok = self.couchBackend.add_note(note)
+        self.assertEquals(ok, 0)
+
+        new_new_note, ok = self.couchBackend.update_note(note)
+        self.assertEquals(ok, 0)
+        self.assertFalse("content" in new_new_note)
+
 
 suite = unittest.TestLoader().loadTestsFromTestCase(TestSequenceFunctions)
 unittest.TextTestRunner(verbosity=2).run(suite)

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import couchdb
+import time
 
 from remote import AbstractRemote
 
@@ -22,6 +23,11 @@ class Couchdb(AbstractRemote):
 
         # UUIDs to be used for new docs
         self.uuids = []
+
+        # Keep a nvpy-side index of couchdb revs, to see if anything
+        # changed on couchdb
+        # Keys are note keys, values are _rev as returned by couchdb
+        self.revs = {}
 
     def get_note_list(self, qty=float("inf")):
         # TODO: use a "type":"note" in each note to list only real notes
@@ -59,9 +65,9 @@ class Couchdb(AbstractRemote):
 
     def add_note(self, note):
         if isinstance(note, basestring):
-            return self._update_note({"content": note})
+            return self.update_note({"content": note})
         elif (isinstance(note, dict)) and "content" in note:
-            return self._update_note(note)
+            return self.update_note(note)
         else:
             return "No string or valid note.", -1
 
@@ -76,36 +82,72 @@ class Couchdb(AbstractRemote):
 
         return {}, 0
 
-    def _update_note(self, note):
+    def update_note(self, note):
+        is_update = "key" in note
+        has_changed = None
+
         doc = self._nvpy_to_couchdb(note)
-        ok, id, rev_or_exc = self.db.update([doc])[0]
-        # TODO: treat !ok and rev_or_exc
-        if ok == -1:
-            return None, -1
-        else:
-            return self.get_note(id)
+        id = doc["_id"]
+        doc["modifydate"] = time.time()
+
+        try:
+            id, rev = self.db.save(doc)
+            has_changed = False
+        except couchdb.ResourceConflict:
+            has_changed = True
+            latest_doc = self.db.get(id)
+            doc["_rev"] = latest_doc["_rev"]
+            id, rev = self.db.save(doc)
+
+
+        note, ok = self.get_note(id)
+        if is_update and not has_changed:
+            del note["content"]
+
+        return note, ok
+
+    def _has_doc_changed(self, latest_remote_doc, local_doc):
+        if "tags" in latest_remote_doc:
+            if "tags" in local_doc:
+                if local_doc["tags"] != latest_remote_doc["tags"]:
+                    return True
+
+        if latest_remote_doc["content"] != local_doc["content"]:
+            return True
+
+        return False
 
     def _nvpy_to_couchdb(self, note):
         """
         Transform a nvpy note (with "key" for id) to a couchdb doc (with
         "_id").
 
-        Also transform everything into utf-8
+        Also transform everything into utf-8.
+
+        MUST be called before saving to couchdb
         """
 
+        doc = {}
         # Encode to utf-8
         if isinstance(note["content"], str):
-            note["content"] = unicode(note["content"], "utf-8")
+            doc["content"] = unicode(note["content"], "utf-8")
+        elif isinstance(note["content"], unicode):
+            doc["content"] = note["content"]
+
         if "tags" in note:
-            note["tags"] = [unicode(t, "utf-8") if isinstance(t,str) else t for t in note["tags"]]
+            doc["tags"] = [unicode(t, "utf-8") if isinstance(t,str) else t for t in note["tags"]]
 
         if "key" in note:
-            note["_id"] = note["key"]
-            del note["key"]
+            doc["_id"] = note["key"]
         else:
-            note["_id"] = self._next_uuid()
+            doc["createdate"] = time.time()
+            doc["_id"] = self._next_uuid()
 
-        return note
+        # Add _rev if known
+        if doc["_id"] in self.revs:
+            doc["_rev"] = self.revs[doc["_id"]]
+
+        return doc
 
     def _couchdb_to_nvpy(self, doc):
         """
@@ -113,19 +155,27 @@ class Couchdb(AbstractRemote):
         "_key") and remove the "_rev" key.
 
         Also transform everything into utf-8
+
+            MUST be called after retrieving from couchdb
         """
 
-        doc["key"] = doc["_id"]
-        del doc["_id"]
+        note = {
+            "key": doc["_id"],
+        }
+        if isinstance(doc["content"], str):
+            note["content"] = unicode(doc["content"], "utf-8")
+        elif isinstance(doc["content"], unicode):
+            note["content"] = doc["content"]
 
-        del doc["_rev"]
-
-        # Encode to utf-8
-        doc["content"] = unicode(doc["content"])
         if "tags" in doc:
-            doc["tags"] = [t.encode('utf-8') if isinstance(t,str) else t for t in doc["tags"]]
+            note["tags"] = [t.encode('utf-8') if isinstance(t,str) else t for t in doc["tags"]]
 
-        return doc
+        # Extract the syncnum from the _rev
+        rev = doc["_rev"]
+        note["syncnum"] = int(rev.partition("-")[0])
+        self.revs[note["key"]] = rev
+
+        return note
 
     def _next_uuid(self):
         if len(self.uuids) == 0:
