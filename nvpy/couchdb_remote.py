@@ -78,12 +78,9 @@ class Couchdb(AbstractRemote):
 
     def delete_note(self, noteid):
         doc = self.db.get(noteid)
-        try:
-            self.db.delete(doc)
-        except couchdb.ResourceConflict:
-            # restart until it works
-            # TODO: do not restart indefinitely
-            self.delete_note(noteid)
+        if doc is not None:
+            doc["_deleted"] = True
+            self.db.save(doc)
 
         return {}, 0
 
@@ -100,8 +97,9 @@ class Couchdb(AbstractRemote):
         except couchdb.ResourceConflict:
             has_changed = True
             latest_doc = self.db.get(id)
-            doc["_rev"] = latest_doc["_rev"]
-            id, rev = self.db.save(doc)
+            if latest_doc is not None:
+                doc["_rev"] = latest_doc["_rev"]
+                id, rev = self.db.save(doc)
 
 
         note, ok = self.get_note(id)
