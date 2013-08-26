@@ -207,6 +207,7 @@ class NotesDB(utils.SubjectMixin):
         n = self.notes[key]
         n['deleted'] = 1
         n['modifydate'] = time.time()
+        self.couchdb_remote.delete_note(key)
 
     def filter_notes(self, search_string=None):
         """Return list of notes filtered with search string.
